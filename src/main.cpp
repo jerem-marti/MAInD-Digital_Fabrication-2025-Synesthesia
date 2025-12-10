@@ -17,10 +17,15 @@ const uint8_t RFID_RST_PIN = 20;  // RC522 RST
 const uint8_t DF_TX_PIN = 12;  // Pico GP12 (TX) -> DFPlayer RX
 const uint8_t DF_RX_PIN = 13;  // Pico GP13 (RX) <- DFPlayer TX
 
+// Potentiometer for volume control
+const uint8_t POT_PIN = 26;    // GP26 (ADC0) - analog input
+const uint8_t MAX_VOLUME = 30; // DFPlayer PRO volume range: 0-30
+
 RfidReader  rfid(RFID_SS_PIN, RFID_RST_PIN);
 AudioPlayer audio(DF_TX_PIN, DF_RX_PIN);
 
 String lastUID = "";
+int lastVolume = -1;
 
 void setup() {
   // Built-in LED for debugging (blinks to show life)
@@ -40,6 +45,9 @@ void setup() {
   
   digitalWrite(LED_BUILTIN, LOW);  // LED off after Serial ready
 
+  // Initialize potentiometer pin
+  pinMode(POT_PIN, INPUT);
+  
   rfid.begin();
   audio.begin();  // if this fails, audio.isReady() will be false
 
@@ -49,6 +57,17 @@ void setup() {
 }
 
 void loop() {
+  // Read potentiometer and update volume if changed
+  int potValue = analogRead(POT_PIN);
+  int currentVolume = map(potValue, 0, 1023, 0, MAX_VOLUME);
+  
+  if (currentVolume != lastVolume) {
+    lastVolume = currentVolume;
+    audio.setVolume(currentVolume);
+    Serial.print("Volume: ");
+    Serial.println(currentVolume);
+  }
+  
   String uid;
   if (!rfid.readCard(uid)) {
     // No card present

@@ -20,11 +20,16 @@ bool AudioPlayer::begin() {
   
   delay(1000);  // Wait for DFPlayer to boot
   
-  // Set initial volume
-  setVolume(15);
+  // Switch to MUSIC function (will say "music")
+  Serial.println("AudioPlayer: switching to MUSIC mode...");
+  sendATCommand("AT+FUNCTION=MUSIC");
+  delay(500);  // Wait for mode switch to complete
   
   // Set play mode to repeat all
   sendATCommand("AT+PLAYMODE=2");
+  
+  // Set initial volume
+  setVolume(15);
   
   _ready = true;
   Serial.println("AudioPlayer: DFPlayer PRO ready.");
