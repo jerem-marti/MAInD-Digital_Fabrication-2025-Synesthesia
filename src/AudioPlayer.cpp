@@ -46,7 +46,12 @@ bool AudioPlayer::begin() {
   
   delay(1000);  // Wait for DFPlayer to boot (critical for reliable operation)
   
-  // Switch to MUSIC function (DFPlayer will announce "music" if speaker connected)
+  // Disable voice prompts (removes "music" announcement and other spoken feedback)
+  Serial.println("AudioPlayer: disabling voice prompts...");
+  sendATCommand("AT+PROMPT=OFF");
+  delay(200);
+  
+  // Switch to MUSIC function (no voice announcement now)
   Serial.println("AudioPlayer: switching to MUSIC mode...");
   sendATCommand("AT+FUNCTION=MUSIC");
   delay(500);  // Wait for mode switch to complete
