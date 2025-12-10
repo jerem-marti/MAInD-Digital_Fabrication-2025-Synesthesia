@@ -19,13 +19,17 @@ const uint8_t DF_RX_PIN = 13;  // Pico GP13 (RX) <- DFPlayer TX
 
 // Potentiometer for volume control
 const uint8_t POT_PIN = 26;    // GP26 (ADC0) - analog input
-const uint8_t MAX_VOLUME = 30; // DFPlayer PRO volume range: 0-30
+const uint8_t MIN_VOLUME = 1;  // Minimum volume
+const uint8_t MAX_VOLUME = 25; // Maximum volume
 
 RfidReader  rfid(RFID_SS_PIN, RFID_RST_PIN);
 AudioPlayer audio(DF_TX_PIN, DF_RX_PIN);
 
-String lastUID = "";
+String currentUID = "";       // Currently playing track's UID
 int lastVolume = -1;
+bool isPlaying = false;       // Track if music is currently playing
+int missedReads = 0;          // Count consecutive failed card reads
+const int REMOVAL_THRESHOLD = 5;  // Number of failed reads before considering card removed
 
 void setup() {
   // Built-in LED for debugging (blinks to show life)
@@ -59,7 +63,7 @@ void setup() {
 void loop() {
   // Read potentiometer and update volume if changed
   int potValue = analogRead(POT_PIN);
-  int currentVolume = map(potValue, 0, 1023, 0, MAX_VOLUME);
+  int currentVolume = map(potValue, 0, 1023, MIN_VOLUME, MAX_VOLUME);
   
   if (currentVolume != lastVolume) {
     lastVolume = currentVolume;
@@ -68,32 +72,54 @@ void loop() {
     Serial.println(currentVolume);
   }
   
+  // Try to read card
   String uid;
-  if (!rfid.readCard(uid)) {
-    // No card present
-    return;
-  }
-
-  Serial.print("Card detected. UID = ");
-  Serial.println(uid);
-
-  // Avoid retriggering same card if it stays on the reader
-  if (uid == lastUID) {
-    Serial.println("Same card as before, ignoring.");
-    return;
-  }
-
-  lastUID = uid;
-
-  // Map UID to track
-  uint16_t track = trackForUID(uid);
-
-  if (track == 0) {
-    Serial.println("No track mapped for this card. Pausing audio.");
-    audio.pause();
+  bool cardDetected = rfid.readCard(uid);
+  
+  if (cardDetected) {
+    // Card detected this loop iteration
+    missedReads = 0;  // Reset missed read counter
+    
+    if (uid != currentUID) {
+      // New/different card
+      currentUID = uid;
+      Serial.print("Card detected. UID = ");
+      Serial.println(uid);
+      
+      uint16_t track = trackForUID(uid);
+      
+      if (track == 0) {
+        Serial.println("No track mapped for this card.");
+        if (isPlaying) {
+          audio.pause();  // Only pause if something is actually playing
+        }
+        isPlaying = false;
+      } else {
+        Serial.print("Playing track ");
+        Serial.println(track);
+        audio.playTrack(track);
+        isPlaying = true;
+      }
+    }
+    // Same card - still present, keep playing
   } else {
-    Serial.print("Mapped to track ");
-    Serial.println(track);
-    audio.playTrack(track);
+    // No card detected this loop
+    if (currentUID != "") {
+      // We had a card before
+      missedReads++;
+      
+      // Only consider card removed after multiple consecutive misses
+      if (missedReads >= REMOVAL_THRESHOLD) {
+        Serial.println("Card removed - pausing music.");
+        if (isPlaying) {
+          audio.pause();  // Only pause if music is actually playing
+        }
+        isPlaying = false;
+        currentUID = "";
+        missedReads = 0;
+      }
+    }
   }
+  
+  delay(100);  // Poll every 100ms
 }

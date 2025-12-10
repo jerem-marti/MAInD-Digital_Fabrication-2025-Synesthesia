@@ -43,9 +43,22 @@ bool RfidReader::readCard(String &uidOut) {
 
   uidOut.toUpperCase();
 
-  // End communication with this card
-  _mfrc522.PICC_HaltA();
+  // Don't halt the card - just stop crypto
+  // This allows the card to be read again in the next loop
   _mfrc522.PCD_StopCrypto1();
 
   return true;
+}
+
+bool RfidReader::isCardPresent() {
+  // Simple approach: try to detect a new card presence
+  // This will detect when card first appears
+  bool present = _mfrc522.PICC_IsNewCardPresent();
+  
+  // If detected, we need to select it to keep the reader ready
+  if (present) {
+    _mfrc522.PICC_ReadCardSerial();
+  }
+  
+  return present;
 }

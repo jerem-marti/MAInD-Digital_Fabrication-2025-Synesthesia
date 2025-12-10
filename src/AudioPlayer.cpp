@@ -54,6 +54,10 @@ void AudioPlayer::playTrack(uint16_t track) {
   filename += String(track) + ".mp3";
   
   playFile(filename);
+  
+  // Ensure repeat mode is set for this track
+  delay(100);
+  sendATCommand("AT+PLAYMODE=1");  // Repeat single track
 }
 
 void AudioPlayer::playFile(const String& path) {
@@ -62,7 +66,7 @@ void AudioPlayer::playFile(const String& path) {
 
 void AudioPlayer::pause() {
   Serial.println("AudioPlayer: pause");
-  sendATCommand("AT+PLAY=PP");  // Play/Pause toggle
+  sendATCommand("AT+PLAY=PP");  // Toggle play/pause
 }
 
 void AudioPlayer::stop() {
