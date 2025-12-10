@@ -1,44 +1,70 @@
+/**
+ * @file main.cpp
+ * @brief RFID-based vinyl player jukebox for Raspberry Pi Pico 2
+ * 
+ * This project creates a vinyl-style music player where RFID cards act as "records".
+ * Place a card on the reader to play its associated track, which loops continuously
+ * until the card is removed. Volume is controlled via a potentiometer.
+ * 
+ * Hardware:
+ * - Raspberry Pi Pico 2
+ * - RC522 RFID reader (SPI)
+ * - DFPlayer PRO audio module (UART)
+ * - Potentiometer for volume control
+ * 
+ * @author Jérémy Martin, generated with GitHub Copilot and ChatGPT
+ * @date December 2025
+ */
+
 #include <Arduino.h>
 #include "RfidReader.h"
 #include "AudioPlayer.h"
 #include "CardRouter.h"
 
-// RC522 pins on Pico 2
-// SPI0 default pins are used for SCK, MOSI, MISO:
-//   SCK  = GP18
-//   MOSI = GP19
-//   MISO = GP16
-// We only need to define SS and RST.
-const uint8_t RFID_SS_PIN  = 17;  // RC522 SDA / SS
-const uint8_t RFID_RST_PIN = 20;  // RC522 RST
+// ========== PIN CONFIGURATION ==========
 
-// DFPlayer pins on Pico 2 - UART0 (Serial1)
-// GP12 = UART0 TX, GP13 = UART0 RX
+// RC522 RFID Reader pins (SPI0)
+// Default SPI pins: SCK=GP18, MOSI=GP19, MISO=GP16
+const uint8_t RFID_SS_PIN  = 17;  // RC522 SDA/SS pin
+const uint8_t RFID_RST_PIN = 20;  // RC522 RST pin
+
+// DFPlayer PRO Audio Module pins (UART0/Serial1)
 const uint8_t DF_TX_PIN = 12;  // Pico GP12 (TX) -> DFPlayer RX
 const uint8_t DF_RX_PIN = 13;  // Pico GP13 (RX) <- DFPlayer TX
 
-// Potentiometer for volume control
+// Volume control potentiometer
 const uint8_t POT_PIN = 26;    // GP26 (ADC0) - analog input
-const uint8_t MIN_VOLUME = 1;  // Minimum volume
-const uint8_t MAX_VOLUME = 25; // Maximum volume
+const uint8_t MIN_VOLUME = 1;  // Minimum volume level
+const uint8_t MAX_VOLUME = 25; // Maximum volume level
 
-RfidReader  rfid(RFID_SS_PIN, RFID_RST_PIN);
-AudioPlayer audio(DF_TX_PIN, DF_RX_PIN);
+// ========== GLOBAL OBJECTS ==========
 
-String currentUID = "";       // Currently playing track's UID
-int lastVolume = -1;
-bool isPlaying = false;       // Track if music is currently playing
-int missedReads = 0;          // Count consecutive failed card reads
-const int REMOVAL_THRESHOLD = 5;  // Number of failed reads before considering card removed
+RfidReader  rfid(RFID_SS_PIN, RFID_RST_PIN);  // RFID reader instance
+AudioPlayer audio(DF_TX_PIN, DF_RX_PIN);      // Audio player instance
 
+// ========== STATE VARIABLES ==========
+
+String currentUID = "";                    // UID of currently playing card
+int lastVolume = -1;                      // Last volume setting (for change detection)
+bool isPlaying = false;                   // Tracks if music is currently playing
+int missedReads = 0;                      // Counter for consecutive failed card reads
+const int REMOVAL_THRESHOLD = 5;          // Failed reads needed before card is considered removed
+
+/**
+ * @brief Initialize hardware and modules
+ * 
+ * Sets up serial communication, RFID reader, audio player, and potentiometer.
+ * LED blinks during initialization to indicate system is alive.
+ */
 void setup() {
-  // Built-in LED for debugging (blinks to show life)
+  // LED indicates system is initializing
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
   
+  // Initialize serial communication for debugging
   Serial.begin(115200);
   
-  // Wait up to 3 seconds for Serial, but don't block forever
+  // Wait for Serial Monitor (max 3 seconds) but don't block forever
   unsigned long start = millis();
   while (!Serial && (millis() - start) < 3000) {
     delay(100);
@@ -47,21 +73,34 @@ void setup() {
   Serial.println();
   Serial.println("Pico 2 RFID Jukebox starting...");
   
-  digitalWrite(LED_BUILTIN, LOW);  // LED off after Serial ready
-
+  digitalWrite(LED_BUILTIN, LOW);  // LED off after initialization
+  
   // Initialize potentiometer pin
   pinMode(POT_PIN, INPUT);
   
+  // Initialize RFID reader
   rfid.begin();
-  audio.begin();  // if this fails, audio.isReady() will be false
-
+  
+  // Initialize audio player
+  audio.begin();
   if (!audio.isReady()) {
     Serial.println("Warning: DFPlayer not ready. RFID will still work.");
   }
 }
 
+/**
+ * @brief Main loop - handles volume control and card detection
+ * 
+ * Continuously:
+ * 1. Reads potentiometer and updates volume if changed
+ * 2. Checks for RFID card presence
+ * 3. Plays associated track when new card is detected
+ * 4. Pauses music when card is removed
+ * 5. Handles card read failures with debouncing
+ */
 void loop() {
-  // Read potentiometer and update volume if changed
+  // ========== VOLUME CONTROL ==========
+  // Read potentiometer and update volume if it has changed
   int potValue = analogRead(POT_PIN);
   int currentVolume = map(potValue, 0, 1023, MIN_VOLUME, MAX_VOLUME);
   
@@ -72,47 +111,52 @@ void loop() {
     Serial.println(currentVolume);
   }
   
-  // Try to read card
+  // ========== CARD DETECTION ==========
   String uid;
   bool cardDetected = rfid.readCard(uid);
   
   if (cardDetected) {
-    // Card detected this loop iteration
+    // Card successfully read
     missedReads = 0;  // Reset missed read counter
     
     if (uid != currentUID) {
-      // New/different card
+      // New or different card detected
       currentUID = uid;
       Serial.print("Card detected. UID = ");
       Serial.println(uid);
       
+      // Look up track number for this card
       uint16_t track = trackForUID(uid);
       
       if (track == 0) {
+        // Unknown card - no track mapped
         Serial.println("No track mapped for this card.");
         if (isPlaying) {
-          audio.pause();  // Only pause if something is actually playing
+          audio.pause();  // Pause only if music is playing
         }
         isPlaying = false;
       } else {
+        // Valid card - play associated track
         Serial.print("Playing track ");
         Serial.println(track);
         audio.playTrack(track);
         isPlaying = true;
       }
     }
-    // Same card - still present, keep playing
+    // Same card still present - continue playing
   } else {
-    // No card detected this loop
+    // ========== CARD REMOVAL DETECTION ==========
+    // No card detected in this iteration
     if (currentUID != "") {
-      // We had a card before
+      // We had a card previously
       missedReads++;
       
       // Only consider card removed after multiple consecutive misses
+      // This provides debouncing for unreliable RFID reads
       if (missedReads >= REMOVAL_THRESHOLD) {
         Serial.println("Card removed - pausing music.");
         if (isPlaying) {
-          audio.pause();  // Only pause if music is actually playing
+          audio.pause();  // Pause only if music is playing
         }
         isPlaying = false;
         currentUID = "";
@@ -121,5 +165,6 @@ void loop() {
     }
   }
   
-  delay(100);  // Poll every 100ms
+  // Poll every 100ms - balance between responsiveness and CPU usage
+  delay(100);
 }
