@@ -25,8 +25,8 @@ bool AudioPlayer::begin() {
   sendATCommand("AT+FUNCTION=MUSIC");
   delay(500);  // Wait for mode switch to complete
   
-  // Set play mode to repeat all
-  sendATCommand("AT+PLAYMODE=2");
+  // Set play mode to repeat one song infinitely
+  sendATCommand("AT+PLAYMODE=1");
   
   // Set initial volume
   setVolume(15);
