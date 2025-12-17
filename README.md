@@ -115,7 +115,7 @@ Maps ADC reading (0–1023) to volume (1–25).
 
 ### Uploading Firmware
 
-Since automatic upload via picotool can be unreliable on Windows, use the manual method:
+Use PlatformIO's built-in upload tool:
 
 1. **Put Pico 2 into BOOTSEL mode:**
    - Hold the BOOTSEL button
@@ -123,16 +123,20 @@ Since automatic upload via picotool can be unreliable on Windows, use the manual
    - Release BOOTSEL
    - Pico 2 appears as a USB drive
 
-2. **Copy firmware to Pico:**
+2. **Upload via PlatformIO:**
    ```bash
-   copy .pio/build/pico2/firmware.uf2 X:
+   pio run -e pico2 -t upload
    ```
-   (Replace `X:` with your Pico drive letter)
+   
+   Or in VS Code:
+   - Click **PlatformIO** in the left sidebar
+   - Expand your project under "pico2"
+   - Click **Upload** (or use the upload button in the toolbar)
 
-3. **Reboot normally:**
-   - Unplug USB
-   - Plug back in (without BOOTSEL)
-   - Firmware loads automatically
+3. **Monitor upload progress:**
+   - PlatformIO will automatically copy the `.uf2` file to the Pico drive
+   - The Pico will reboot and load the firmware automatically
+   - You'll see success message in the terminal
 
 ### Serial Monitor Setup
 
