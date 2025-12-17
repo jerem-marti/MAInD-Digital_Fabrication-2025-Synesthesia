@@ -7,23 +7,25 @@ Follow this guide to get the vinyl player working from scratch after cloning the
 - **Hardware:**
   - Raspberry Pi Pico 2
   - RC522 RFID reader module
-  - DFPlayer PRO (DF1201S) audio module
-  - SD card (with MP3 files in format /0001.mp3, /0002.mp3, etc.)
+  - DFPlayer PRO (DF1201S) audio module with internal flash memory
+  - MP3 files (to be uploaded to DFPlayer via USB-C)
   - Jumper wires and breadboard
   - USB cable for Pico 2
-  - (Optional) Potentiometer for volume control
+  - USB-C cable for DFPlayer PRO (for file upload)
+  - Potentiometer for volume control
 
 - **Software:**
   - VS Code with PlatformIO extension
-  - Python 3.8+
   - Git
 
 ## Step 1: Clone the Repository
 
 ```bash
 git clone <your-repo-url>
-cd vinyl-player
+cd <project-folder>
 ```
+
+Replace `<project-folder>` with the actual folder name (e.g., `vinyl-player` or whatever the repository is named)
 
 ## Step 2: Install PlatformIO
 
@@ -37,7 +39,7 @@ cd vinyl-player
 ## Step 3: Open Project in PlatformIO
 
 1. In VS Code, go to **File → Open Folder**
-2. Select the `vinyl-player` directory
+2. Select the `<project-folder>` directory
 3. PlatformIO will auto-detect the project
 4. Wait for indexing to complete (bottom status bar will show "✓")
 
@@ -79,28 +81,29 @@ The DFRobot_DF1201S library has a compatibility issue with Arduino-Pico. We need
 
 ### RC522 RFID Reader Wiring
 
-Connect to **SPI0 pins** on Pico 2:
+Connect to **SPI0 pins** on Pico 2 using the flat cable:
 
-| RC522 Pin | Pico 2 Pin | Color (typical) |
-|-----------|-----------|-----------------|
-| VCC       | 3V3       | Red             |
-| GND       | GND       | Black           |
-| SCK       | GP18      | Orange          |
-| MOSI      | GP19      | Yellow          |
-| MISO      | GP16      | Green           |
-| SDA       | GP17      | Blue            |
-| RST       | GP20      | Purple          |
+| Flat Cable Color | RC522 Pin | Pico 2 Pin | Signal |
+|------------------|-----------|-----------|--------|
+| Brown            | SDA       | **GP17**  | CS (Chip Select) |
+| Red              | SCK       | **GP18**  | Clock |
+| Orange           | MOSI      | **GP19**  | Data In |
+| Yellow           | MISO      | **GP16**  | Data Out |
+| Green            | IRQ       | (not used) | Interrupt |
+| Blue             | GND       | **GND**   | Ground |
+| Purple           | RST       | **GP20**  | Reset |
+| Grey             | 3.3V      | **3V3**   | Power |
 
-**Diagram:**
+**Flat Cable Wiring:**
 ```
-Pico 2                    RC522
-3V3 ────────────────→ VCC
-GND ────────────────→ GND
-GP18 (SCK) ─────────→ SCK
-GP19 (MOSI) ────────→ MOSI
-GP16 (MISO) ────────→ MISO
-GP17 (CS) ──────────→ SDA
-GP20 (RST) ─────────→ RST
+Brown (SDA/CS)   ────────────→ GP17
+Red (SCK)        ────────────→ GP18
+Orange (MOSI)    ────────────→ GP19
+Yellow (MISO)    ────────────→ GP16
+Green (IRQ)      ────────────→ (not connected)
+Blue (GND)       ────────────→ GND
+Purple (RST)     ────────────→ GP20
+Grey (3.3V)      ────────────→ 3V3
 ```
 
 ### DFPlayer PRO Wiring
@@ -131,19 +134,38 @@ GND ────────────────→ GND
 | Middle pin    | GP26      |
 | Right pin     | 3V3       |
 
-## Step 7: Prepare SD Card
+## Step 7: Upload MP3 Files to DFPlayer PRO Internal Memory
 
-1. Format SD card as **FAT32**
-2. Create MP3 files with naming convention:
+The DFPlayer PRO has built-in flash memory accessible via USB-C (no SD card needed).
+
+1. **Prepare MP3 files with naming convention:**
    ```
-   /0001.mp3
-   /0002.mp3
-   /0003.mp3
+   0001.mp3
+   0002.mp3
+   0003.mp3
    ...
-   /0999.mp3
+   0999.mp3
    ```
-3. Place files in **root directory** (not in subfolders)
-4. Insert SD card into DFPlayer PRO
+
+2. **Connect DFPlayer PRO to computer:**
+   - Use a USB-C cable
+   - Connect to DFPlayer PRO's USB-C port
+   - The device will appear as a USB mass storage drive in File Explorer
+
+3. **Copy files to the device:**
+   - Open the DFPlayer drive in File Explorer
+   - Copy all MP3 files to the **root directory** (not in subfolders)
+   - Ensure files follow the naming convention (0001.mp3, 0002.mp3, etc.)
+
+4. **Safely eject the device:**
+   - Right-click the DFPlayer drive in File Explorer
+   - Select "Eject"
+   - Wait for confirmation
+   - Disconnect the USB-C cable
+
+5. **Reconnect DFPlayer PRO to the rest of the circuit:**
+   - Connect TX and RX to Pico 2 (GP12 and GP13)
+   - Connect power and ground
 
 ## Step 8: Update Card Mappings
 
@@ -173,7 +195,7 @@ If you get compilation errors, ensure the DFRobot patch (Step 5) was applied cor
 
 ## Step 10: Upload Firmware
 
-### Manual Method (Recommended for Windows)
+### PlatformIO Method
 
 1. **Put Pico 2 into BOOTSEL mode:**
    - Hold BOOTSEL button
@@ -181,16 +203,24 @@ If you get compilation errors, ensure the DFRobot patch (Step 5) was applied cor
    - Release BOOTSEL
    - Pico appears as a USB mass storage device (check File Explorer)
 
-2. **Copy firmware file:**
+2. **Upload via PlatformIO:**
+   
+   **Option A: Using VS Code UI**
+   - Click **PlatformIO** in the left sidebar
+   - Expand your project under "pico2"
+   - Click **Upload** button
+   - Or use the upload icon in the toolbar
+   
+   **Option B: Using Terminal**
    ```bash
-   copy .pio/build/pico2/firmware.uf2 X:
+   pio run -e pico2 -t upload
    ```
-   (Replace `X:` with your Pico drive letter)
 
-3. **Reboot normally:**
-   - Unplug USB cable
-   - Plug back in (without BOOTSEL held)
-   - Firmware loads automatically
+3. **Wait for upload to complete:**
+   - PlatformIO will automatically detect the Pico drive
+   - Copy the firmware `.uf2` file
+   - Pico will reboot automatically
+   - Firmware loads and runs
 
 ## Step 11: Discover Card UIDs
 
@@ -261,11 +291,11 @@ uint16_t trackForUID(const String &uid) {
 - [ ] Card UIDs discovered and noted
 - [ ] CardRouter.cpp updated with your card UIDs
 - [ ] Music plays when card is presented
-- [ ] Music pauses when card is removed
-
-## Common Issues During Setup
-
-### "Cannot find serial device"
+### "DFPlayer not responding"
+- Verify UART wiring (GP12, GP13)
+- Check DFPlayer power (5V, not 3.3V)
+- Verify MP3 files are correctly uploaded to DFPlayer internal memory via USB-C
+- Try pressing the play button on DFPlayer PCB
 - Ensure Pico 2 is plugged in
 - Try a different USB cable
 - Check Device Manager for "USB Serial Device"

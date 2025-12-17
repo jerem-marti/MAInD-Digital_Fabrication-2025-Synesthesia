@@ -41,9 +41,7 @@ playMode += str[10];  // ✅ Correct
 
 The `+=` operator (append) is unambiguous and works with Arduino-Pico.
 
-## How to Apply the Patch
-
-### Method 1: Manual Editing (Recommended)
+## How to Apply the Patch: Manual Editing (Recommended)
 
 1. Open this file in a text editor:
    ```
@@ -74,21 +72,6 @@ The `+=` operator (append) is unambiguous and works with Arduino-Pico.
    ```bash
    pio run -e pico2
    ```
-
-### Method 2: Automated Patch (using sed)
-
-On Windows PowerShell:
-
-```powershell
-$filePath = ".pio/libdeps/pico2/DFRobot_DF1201S/src/DFRobot_DF1201S.cpp"
-(Get-Content $filePath) -replace 'playMode = str\[10\];', 'playMode += str[10];' | Set-Content $filePath
-```
-
-On Mac/Linux:
-
-```bash
-sed -i 's/playMode = str\[10\];/playMode += str[10];/g' .pio/libdeps/pico2/DFRobot_DF1201S/src/DFRobot_DF1201S.cpp
-```
 
 ## Why This Happens
 

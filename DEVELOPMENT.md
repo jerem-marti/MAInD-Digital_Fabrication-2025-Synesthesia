@@ -5,7 +5,7 @@ This document provides detailed information for developers who want to understan
 ## Project Structure
 
 ```
-vinyl-player/
+<project-folder>/
 ├── include/                    # Header files (public interfaces)
 │   ├── AudioPlayer.h          # DFPlayer PRO wrapper
 │   ├── RFIDReader.h           # RC522 RFID reader wrapper
@@ -262,41 +262,55 @@ uint8_t lastVolume;         // Last set volume (for potentiometer changes)
 ```
 
 **Main loop flow:**
+
+```mermaid
+graph TD
+    A["🔄 Start Loop"] --> B["Read Potentiometer<br/>ADC0 GP26"]
+    B --> C{"Volume<br/>Changed?"}
+    C -->|Yes| D["Update Volume"]
+    C -->|No| E["Poll RFID Reader<br/>readCard()"]
+    D --> E
+    
+    E --> F{"Card<br/>Detected?"}
+    F -->|No| G["missedReads++"]
+    G --> H{"missedReads ><br/>REMOVAL_THRESHOLD?"}
+    H -->|Yes| I{"isPlaying<br/>== true?"}
+    I -->|Yes| J["audio.pause()"]
+    J --> K["isPlaying = false"]
+    H -->|No| K
+    I -->|No| K
+    K --> L["Return to Loop"]
+    
+    F -->|Yes| M["missedReads = 0"]
+    M --> N{"Same UID<br/>as last?"}
+    N -->|Yes| L
+    N -->|No| O["Call trackForUID()"]
+    
+    O --> P{"Track<br/>== 0?"}
+    P -->|Yes| Q["Unknown Card"]
+    Q --> R["audio.pause()"]
+    P -->|No| S["audio.playTrack(track)"]
+    
+    R --> T["Update lastUID"]
+    S --> T
+    T --> U["isPlaying = true"]
+    U --> L
+    
+    L --> V["🔄 Loop Delay ~10ms"]
+    V --> A
+    
+    style A fill:#90EE90
+    style L fill:#FFB6C6
+    style V fill:#87CEEB
+    style Q fill:#FFD700
+    style S fill:#98FB98
 ```
-┌─────────────────┐
-│   Start loop    │
-└────────┬────────┘
-         ↓
-┌─────────────────────────────┐
-│ Read potentiometer (ADC)     │
-│ Update volume if changed     │
-└────────┬────────────────────┘
-         ↓
-┌─────────────────────────────┐
-│ Poll RFID reader            │
-│ readCard(uid)               │
-└────────┬────────────────────┘
-         ↓
-     Card read?  ─NO→ missedReads++
-         │YES
-         ↓
-    Same as last?  ─YES→ Skip (debounce)
-         │NO
-         ↓
-┌─────────────────────────────┐
-│ Look up track in CardRouter │
-│ trackForUID(uid)            │
-└────────┬────────────────────┘
-         ↓
-     Track 0? ─YES→ audio.pause()
-         │NO         (unknown card)
-         ↓
-    audio.playTrack(track)
-         ↓
-┌─────────────────┐
-│   End loop      │
-└─────────────────┘
-```
+
+Key decision points:
+- **Card read?** - No: increment missed reads counter
+- **Same UID?** - Yes: debounce (prevent rapid retriggers)
+- **Track 0?** - Yes: unknown card, pause music
+- **Volume changed?** - Yes: update DFPlayer volume
 
 **Debouncing strategy:**
 ```cpp
@@ -456,38 +470,6 @@ Approximate flash (ROM) on Pico 2 (4 MB total):
 
 **No memory constraints for this project.**
 
-## Future Enhancements
-
-### Possible improvements:
-
-1. **Volume persistence:**
-   - Store last volume in Pico EEPROM
-   - Restore on boot
-
-2. **Track history:**
-   - Keep a list of recently played cards
-   - Display on optional OLED screen
-
-3. **Web interface:**
-   - Add WiFi module (Pico W)
-   - Manage card mappings via web browser
-
-4. **Multiple DFPlayers:**
-   - Extend code to support multiple audio modules
-   - Create zones or rooms
-
-5. **Statistics:**
-   - Track which cards are played most often
-   - Log playtime data to SD card
-
-6. **LED feedback:**
-   - Status LED (power, playing, error)
-   - Addressable LEDs for visual feedback
-
-7. **Pause/resume UI:**
-   - Physical buttons for play/pause/next
-   - Currently only available via card placement/removal
-
 ## Testing
 
 ### Manual Testing Checklist
@@ -501,88 +483,6 @@ Approximate flash (ROM) on Pico 2 (4 MB total):
 - [ ] Unknown cards don't trigger playback
 - [ ] Same card can be read multiple times
 - [ ] System recovers from errors gracefully
-
-### Unit Testing (Future)
-
-The `test/` directory is available for unit tests. Consider:
-
-```cpp
-// Example test structure (pseudocode)
-test_rfid_uid_formatting() {
-  RfidReader rfid(17, 20);
-  String uid = "C1:98:CC:E4";
-  assert(uid.length() == 11);
-  assert(uid.indexOf(':') == 2);
-}
-
-test_card_router_known_card() {
-  uint16_t track = trackForUID("C1:98:CC:E4");
-  assert(track == 6);
-}
-
-test_card_router_unknown_card() {
-  uint16_t track = trackForUID("FF:FF:FF:FF");
-  assert(track == 0);
-}
-```
-
-## Performance Optimization
-
-### Current loop timing:
-
-- RFID poll: ~2 ms per read
-- Serial1 communication: Non-blocking
-- Main loop iteration: ~5–10 ms (plenty fast)
-
-**No optimization needed for current design.**
-
-### If needed in future:
-
-- Interrupt-driven RFID detection
-- DMA transfers for audio control
-- Async/await patterns for long operations
-
-## Code Style
-
-The codebase follows these conventions:
-
-- **Naming:**
-  - Classes: `PascalCase` (e.g., `RfidReader`)
-  - Functions: `camelCase` (e.g., `readCard()`)
-  - Constants: `UPPER_CASE` (e.g., `POLL_INTERVAL`)
-  - Private members: `_camelCase` (e.g., `_mfrc522`)
-
-- **Documentation:**
-  - Doxygen-style comments for public APIs
-  - Inline comments explain WHY, not WHAT
-  - Each file has a header comment
-
-- **Formatting:**
-  - 2-space indentation
-  - Braces on same line (K&R style)
-  - Maximum line length: 100 characters
-
-## Troubleshooting During Development
-
-### Compilation errors
-
-See `LIBRARY_PATCH.md` for the DFRobot patch.
-
-### Upload failures
-
-Use the BOOTSEL manual method (see `SETUP_GUIDE.md`).
-
-### Runtime crashes
-
-- Check Serial Monitor for error messages
-- Enable more debug output
-- Verify hardware connections
-
-### Cards not detected
-
-- Check RC522 SPI wiring
-- Verify 3.3V power to RC522
-- Try different RFID cards
 
 ## References
 

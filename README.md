@@ -7,7 +7,7 @@ A Raspberry Pi Pico 2 jukebox that plays different music tracks based on RFID ca
 ### Goal
 Create an interactive music player where:
 - **RC522 RFID reader** detects when cards are placed on the reader
-- **DFPlayer PRO (DF1201S)** plays the corresponding track from is internal memory
+- **DFPlayer PRO (DF1201S)** plays the corresponding track from its internal flash memory (USB-C)
 - **Potentiometer** controls volume
 - **Pico 2** orchestrates the entire system using Arduino framework
 
@@ -255,32 +255,44 @@ uint8_t lastVolume;      // Last set volume level
 
 ## DFPlayer File Setup
 
-### File naming convention
+### Adding Files to Internal Memory
 
-Files must be named with leading zeros:
-```
-/0001.mp3
-/0002.mp3
-/0003.mp3
-...
-/0999.mp3
-```
+The DFPlayer PRO has built-in flash memory (no SD card needed). Files are stored directly on the device and accessed via USB-C:
 
-### Directory structure on DFPlayer memory
+1. **Connect DFPlayer PRO to computer via USB-C cable**
+   - The device appears as a USB mass storage device
+   - Check File Explorer for the DFPlayer drive
 
-```
-DFPlayer Root
-├── 0001.mp3
-├── 0002.mp3
-├── 0003.mp3
-└── 0006.mp3
-```
+2. **File naming convention**
 
-Place all files in the **root directory** (not in subfolders).
+   Files must be named with leading zeros:
+   ```
+   /0001.mp3
+   /0002.mp3
+   /0003.mp3
+   ...
+   /0999.mp3
+   ```
 
-### Maximum files
+3. **Directory structure on DFPlayer internal memory**
 
-DFPlayer PRO can handle up to 9999 files (0001–9999).
+   ```
+   DFPlayer Internal Memory (USB-C)
+   ├── 0001.mp3
+   ├── 0002.mp3
+   ├── 0003.mp3
+   └── 0006.mp3
+   ```
+
+   Place all files in the **root directory** (not in subfolders).
+
+4. **Maximum files**
+
+   DFPlayer PRO can handle up to 9999 files (0001–9999).
+
+5. **Eject safely before disconnecting**
+   - After copying files, eject the USB device properly
+   - Then safely disconnect the USB-C cable
 
 ## Configuration
 
