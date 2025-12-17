@@ -41,9 +41,6 @@ uint16_t trackForUID(const String &uid) {
   if (uid == "C1:9E:CC:E4") return 1;  // Card 1 plays track 1
   if (uid == "B1:A0:CC:E4") return 2;  // Card 2 plays track 2
   if (uid == "E1:96:CC:E4") return 3;  // Card 3 plays track 3
-  if (uid == "91:A2:CC:E4") return 4;  // Card 4 plays track 4
-  if (uid == "F1:94:CC:E4") return 5;  // Card 5 plays track 5
-  if (uid == "C1:98:CC:E4") return 6;  // Card 6 plays track 6
 
   // Unknown card - return 0 (no playback)
   // This prevents unexpected behavior when unregistered cards are scanned
