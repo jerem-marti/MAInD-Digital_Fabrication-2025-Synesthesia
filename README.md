@@ -7,8 +7,8 @@ A Raspberry Pi Pico 2 jukebox that plays different music tracks based on RFID ca
 ### Goal
 Create an interactive music player where:
 - **RC522 RFID reader** detects when cards are placed on the reader
-- **DFPlayer PRO (DF1201S)** plays the corresponding track from an SD card
-- **Potentiometer** controls volume (optional feature)
+- **DFPlayer PRO (DF1201S)** plays the corresponding track from is internal memory
+- **Potentiometer** controls volume
 - **Pico 2** orchestrates the entire system using Arduino framework
 
 ### Architecture
@@ -54,7 +54,7 @@ Uses **Serial1 (UART0)** for AT command communication:
 
 **Baud Rate:** 115200 (fixed for DFPlayer PRO AT commands)
 
-### Optional: Potentiometer (Volume Control)
+### Potentiometer (Volume Control)
 
 | Connection | Pico 2 Pin | Notes |
 |-----------|-----------|-------|
@@ -77,7 +77,7 @@ Maps ADC reading (0–1023) to volume (1–25).
 1. **Clone the repository:**
    ```bash
    git clone <repo-url>
-   cd vinyl-player
+   cd <project-folder>
    ```
 
 2. **Open in VS Code with PlatformIO:**
@@ -249,7 +249,7 @@ uint8_t missedReads;     // Counter for card removal detection
 uint8_t lastVolume;      // Last set volume level
 ```
 
-## SD Card File Setup
+## DFPlayer File Setup
 
 ### File naming convention
 
@@ -262,10 +262,10 @@ Files must be named with leading zeros:
 /0999.mp3
 ```
 
-### Directory structure on SD card
+### Directory structure on DFPlayer memory
 
 ```
-SD Card Root
+DFPlayer Root
 ├── 0001.mp3
 ├── 0002.mp3
 ├── 0003.mp3
@@ -303,7 +303,7 @@ const uint16_t POLL_INTERVAL = 100;   // Milliseconds between reads
 
 ## Troubleshooting
 
-### "No cards detected"
+### "No RFID chip detected"
 
 **Possible causes:**
 1. RC522 wiring incorrect (check SPI pins: 16, 18, 19)
@@ -386,10 +386,6 @@ Both are specified in `platformio.ini` and auto-installed by PlatformIO.
 - **DFRobot_DF1201S:** https://github.com/DFRobot/DFRobot_DF1201S
 - **Max Gerhardt's Platform:** https://github.com/maxgerhardt/platform-raspberrypi
 - **Arduino-Pico Core:** https://github.com/earlephilhower/arduino-pico
-
-## License
-
-[Add your license here]
 
 ## Author
 
